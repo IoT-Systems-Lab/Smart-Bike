@@ -1,27 +1,29 @@
 // BoomBike Gateway
 // Receive data from the bike over BLE
-// Send data to the server over WiFi using MQTT
+// Send data to InfluxDB over WiFi
 
-#include "BoomBikeMQTT.h"
-#include "BoomBikeJSON.h"
+#include "BoomBikeInfluxPublisher.h"
 #include "BoomBikeUltrasonic.h"
 #include "BoomBikeBLE.h"
 #include <Arduino.h>
+// Include local secrets (create src/secrets.h from src/secrets.h.example and keep it out of git)
+#include "secrets.h"
 
+// Network credentials (defined in src/secrets.h - not on git to avoid committing real secrets)
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PASSWORD;
 
-// Network credentials
-const char* ssid = "BoomBike";
-const char* password = "KjellKjell";
+// InfluxDB credentials
+const char* influxdb_url = INFLUXDB_URL;
+const char* influxdb_org = INFLUXDB_ORG;
+const char* influxdb_bucket = INFLUXDB_BUCKET;
+const char* influxdb_token = INFLUXDB_TOKEN;
 
-// MQTT broker address
-const char* mqtt_server = "192.168.137.1";
-BoomBikeMQTT bikeMQTT(ssid, password, mqtt_server);
+// InfluxDB publisher
+BoomBikeInfluxPublisher influxPublisher(ssid, password, influxdb_url, influxdb_org, influxdb_bucket, influxdb_token);
 
 // BLE communication
 BoomBikeBLE bikeBLE("BoomBike-Gateway");
-
-// Data handling
-BoomBikeJSON bikeJSON;
 
 // Ultrasonic sensor on pins 8 (trigger) and 9 (echo)
 BoomBikeUltrasonic ultrasonic(8, 9);
@@ -33,9 +35,7 @@ void setup() {
   bikeBLE.begin();
   bikeBLE.setPhy(NimBLEScan::Phy::SCAN_CODED);
 
-  //bikeMQTT.begin();
-  //ultrasonic.enablePassDetection();
-  //ultrasonic.setTimeResolution(50); // read every 50 ms
+  influxPublisher.begin();
 }
 
 void loop() {
@@ -51,38 +51,14 @@ void loop() {
   delay(4000); // Stay connected for 4 seconds
   bikeBLE.disconnect();
   delay(1000); // Wait 1 second before scanning again
-  // bikeBLE.verboseScanForDevices(5000); // Scan for 5 seconds and print all found devices
-  // delay(5000); // Wait 5 seconds before next scan
   
+  // Read distance from ultrasonic sensor
+  float distance = ultrasonic.readDistance();
+  Serial.print("Ultrasonic distance: ");
+  Serial.println(distance);
 
-  // // No blocking work here — everything is event-driven
-  // // send a message every 10 seconds
-  // static unsigned long lastMsgTime = 0;
-  // if (millis() - lastMsgTime > 10000) {
-  //   Serial.println("Publishing MQTT message...");
-  //   lastMsgTime = millis();
-  //   bikeJSON.addData("speed", 24);
-  //   bikeJSON.addData("temperature", 18.5);
-  //   bikeJSON.addData("battery", 75);
-  //   bikeMQTT.publishMessage("bike/data", bikeJSON.toString());
-  //   bikeJSON.clear();
-  // }
-
-  // // Check for a pass event from the ultrasonic sensor
-  // if (ultrasonic.checkForPass()) {
-  //   Serial.println("Pass detected!");
-  //   bikeJSON.addData("event", "pass");
-  //   bikeMQTT.publishMessage("bike/data", bikeJSON.toString()); // immediately publish instead of batching
-  //   bikeJSON.clear();
-  // }
-
-  // // send distance data every second
-  // static unsigned long lastDistanceTime = 0;
-  // if (millis() - lastDistanceTime > 1000) {
-  //   lastDistanceTime = millis();
-  //   float distance = ultrasonic.readDistance();
-  //   bikeJSON.addData("distance", distance);
-  //   bikeMQTT.publishMessage("bike/data", bikeJSON.toString());
-  //   bikeJSON.clear();
-  // }
+  // Publish data to InfluxDB
+  influxPublisher.addData("uptime_seconds", millis() / 1000);
+  influxPublisher.addData("distance", distance);
+  influxPublisher.publishData();
 }

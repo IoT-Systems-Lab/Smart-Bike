@@ -4,3 +4,6 @@
 .vscode/launch.json
 .vscode/ipch
 .vscode/extensions.json
+
+# Ignore local secrets (create src/secrets.h from src/secrets.h.example)
+src/secrets.h
