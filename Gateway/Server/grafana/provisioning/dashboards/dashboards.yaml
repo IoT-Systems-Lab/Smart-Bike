@@ -1,0 +1,11 @@
+apiVersion: 1
+providers:
+  - name: 'Bike Dashboards'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 1
+    options:
+      path: /var/lib/grafana/dashboards

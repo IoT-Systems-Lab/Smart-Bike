@@ -1,0 +1,61 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mqtt-broker
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    restart: unless-stopped
+
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUX_USERNAME}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUX_PASSWORD}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUX_ORG}
+      - DOCKER_INFLUXDB_INIT_BUCKET=bike_data
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_TOKEN}
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    restart: unless-stopped
+
+  mqtt-bridge:
+    build: ./mqtt-bridge
+    container_name: mqtt-bridge
+    volumes:
+      - ./mqtt-bridge:/app
+    environment:
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
+    depends_on:
+      - mosquitto
+      - influxdb
+    restart: unless-stopped
+
+  grafana:
+    build: ./grafana
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USERNAME}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - INFLUX_USERNAME=${INFLUX_USERNAME}
+      - INFLUX_PASSWORD=${INFLUX_PASSWORD}
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
+      - INFLUX_ORG=${INFLUX_ORG}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    entrypoint: >
+      sh -c "envsubst < /etc/grafana/provisioning/datasources/datasources.yaml.template > /etc/grafana/provisioning/datasources/datasources.yaml && /run.sh"
+    depends_on:
+      - influxdb
+    restart: unless-stopped
+
+volumes:
+  influxdb-data:
