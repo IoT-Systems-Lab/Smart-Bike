@@ -35,7 +35,7 @@ We aim to:
 
 ---
 
-## Team Members
+## Group A Members
 
 | Name       | Role                 |
 |-------------|----------------------|
