@@ -1,49 +1,35 @@
-# BoomBike
+# Gateway for Smart Bike Monitoring System
 
-This project contains a simple setup for monitoring data from a smart bike. The bike sends data over BLE long range to a gateway (ESP32c3 in this case) which then publishes the data to an MQTT broker over WiFi. On the server side, a python script subscribes to the MQTT broker and stores the data in an InfluxDB database. Finally, Grafana is used to visualize the data.
-The whole server setup is containerized using Docker for easy deployment and scaling.
+The purpose of the gateway is to receive data from a smart bike over BLE long range and write it to an InfluxDB database over a WiFi connection.
+The dashboard is visualized using Grafana. This accesses the InfluxDB database using its HTTP API.
+
+Both the database and the dashboard are hosted in the cloud using free-tier services. The database is hosted on InfluxDB Cloud and the Grafana dashboard is hosted on Grafana Cloud.
+
+It is also possible to host both the database and the dashboard locally using Docker containers. These could be hosted on a personal server. Instructions for these containers are provided in the /Server folder.
+
+
 
 ## System overview
 
 ```
-Bike --BLE--> Gateway
-                 | (MQTT publish over WiFi)
-                 v
-          Mosquitto Broker
-                 | (MQTT subscribe)
-                 v
-         MQTT Bridge (Python)
-                 | (HTTP/Influx Line Protocol)
-                 v
-              InfluxDB 
-                 | (HTTP API)
-                 v
-              Grafana 
+   Smart Bike
+         | (BLE long range)
+         v
+      Gateway
+         | (HTTP API)
+         v
+   InfluxDB Cloud
+         | (HTTP API)
+         v
+   Grafana Cloud
 ```
 
-## Structure
+## Code for the Gateway
 
-- /gateway: Code for the ESP32c3 gateway to receive BLE data and publish to MQTT broker.
-- /Server: The Docker containers are set up in the docker-compose.yml file.
+The code for the gateway is written in c++ using the Arduino framework. It is designed to run on an ESP32 microcontroller with both WiFi and BLE long range capabilities.
 
-# Server setup
+## Link to dashboard and database
 
-## Deployment
-
-Simply start the docker containers. Navigate to http://SERVER-IP:3000 for the dashboard. The credentials can be changed inside the .env file before starting the docker containers.
-
-default username: admin\
-default password: admin123
-
-## Test MQTT commands
-
-on a Windows machine:
-```
-mosquitto_pub -h localhost -t bike/data -m "{\"speed\":15,\"temp\":20.1}"
-```
-
-Or just use the gateway to send MQTT commands. Make sure to publish on a topic that the MQTT bridge is subscribed to!
-
-## Change default dashboard
-
-Go to the Grafana server and set up the dashboard as you want it to be. Then go to edit->settings->JSON Model and copy the json configuration. Put this in /grafana/dashboards/BoomBike.json and it will be the default configuration when deploying the container.
+- InfluxDB Cloud: https://cloud2.influxdata.com/
+- Grafana Cloud: https://grafana.com/cloud
+- Grafana Dashboard: https://boombike.grafana.net/public-dashboards/a31db9c51b8144fbb526a16ae5137e5a?fbclid=IwY2xjawNm6t9leHRuA2FlbQIxMQABHihIpa4uVn0q4TQ20HxuqrC6knFB-QV5GCWbPZI-nRs55s2GTs8DI9WtZkRM_aem_m_eqAt-B783CyasroQSzHg
