@@ -39,26 +39,32 @@ void setup() {
 }
 
 void loop() {
-  NimBLEAdvertisedDevice* device = bikeBLE.findDeviceWithService(NimBLEUUID("abcd"), 3); // Scan for 3 seconds to find the bike service
-  if (device) {
-    Serial.print("Found device: ");
-    Serial.println(device->toString().c_str());
-  } else {
-    Serial.println("Device not found, retrying scan...");
-    return; // Retry scanning
-  }
-  bikeBLE.connectToDevice(device);
-  delay(4000); // Stay connected for 4 seconds
-  bikeBLE.disconnect();
-  delay(1000); // Wait 1 second before scanning again
+//   NimBLEAdvertisedDevice* device = bikeBLE.findDeviceWithService(NimBLEUUID("abcd"), 3); // Scan for 3 seconds to find the bike service
+//   if (device) {
+//     Serial.print("Found device: ");
+//     Serial.println(device->toString().c_str());
+//   } else {
+//     Serial.println("Device not found, retrying scan...");
+//     return; // Retry scanning
+//   }
+//   bikeBLE.connectToDevice(device);
+//   delay(4000); // Stay connected for 4 seconds
+//   bikeBLE.disconnect();
+//   delay(1000); // Wait 1 second before scanning again
   
   // Read distance from ultrasonic sensor
-  float distance = ultrasonic.readDistance();
-  Serial.print("Ultrasonic distance: ");
-  Serial.println(distance);
+  //float distance = ultrasonic.readDistance();
+  //Serial.print("Ultrasonic distance: ");
+  //Serial.println(distance);
 
   // Publish data to InfluxDB
-  influxPublisher.addData("uptime_seconds", millis() / 1000);
-  influxPublisher.addData("distance", distance);
+  //influxPublisher.addData("uptime_seconds", millis() / 1000);
+  //influxPublisher.addData("distance", distance);
+  //influxPublisher.publishData();
+
+  // Send dummy GPS coordinates (for Grafana Geomap testing)
+  // Example coordinates: New York City (latitude, longitude)
+  influxPublisher.addData("latitude", 51.060148f);
+  influxPublisher.addData("longitude", 3.707525f);
   influxPublisher.publishData();
 }
