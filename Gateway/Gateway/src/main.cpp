@@ -5,6 +5,7 @@
 #include "BoomBikeInfluxPublisher.h"
 #include "BoomBikeUltrasonic.h"
 #include "BoomBikeBLE.h"
+#include <zanshin_BME680.h>
 #include <Arduino.h>
 // Include local secrets (create src/secrets.h from src/secrets.h.example and keep it out of git)
 #include "secrets.h"
@@ -28,6 +29,10 @@ BoomBikeBLE bikeBLE("BoomBike-Gateway");
 // Ultrasonic sensor on pins 8 (trigger) and 9 (echo)
 BoomBikeUltrasonic ultrasonic(8, 9);
 
+// BME680 sensor on I2C
+BME680_Class bme680;
+static int32_t temperature, humidity, pressure, gas;
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Starting BoomBike Gateway...");
@@ -36,6 +41,17 @@ void setup() {
   bikeBLE.setPhy(NimBLEScan::Phy::SCAN_CODED);
 
   influxPublisher.begin();
+  
+  if(bme680.begin()) {
+    bme680.setOversampling(TemperatureSensor, Oversample16);
+    bme680.setOversampling(HumiditySensor, Oversample16);
+    bme680.setOversampling(PressureSensor, Oversample16);
+    bme680.setIIRFilter(IIR4);
+    bme680.setGas(320, 150);
+    Serial.println("BME680 sensor initialized.");
+  } else {
+    Serial.println("Failed to initialize BME680 sensor.");
+  }
 }
 
 void loop() {
@@ -67,4 +83,7 @@ void loop() {
   influxPublisher.addData("latitude", 51.060148f);
   influxPublisher.addData("longitude", 3.707525f);
   influxPublisher.publishData();
+  
+  // Read BME680 sensor data
+  bme680.getSensorData(temperature, humidity, pressure, gas);
 }
