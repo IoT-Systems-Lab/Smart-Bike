@@ -37,14 +37,14 @@ We aim to:
 
 ## Group A Members
 
-| Name       | Role                 |
-|-------------|----------------------|
-| Beau Forrez    | Gateway & Dashboard  |
-| Elias Neels    | Gateway & Dashboard  |
-| Kjell Naessens   | Gateway & Dashboard  |
-| Wout Batselé    | Gateway & Dashboard  |
-| Charlotte Bert   | Sensors              |
-| Niels Verhoeve   | Sensors              |
-| Arne Van der Stede  | Sensors              |
-| Syme Vandenbosch   | Sensors              |
-| Daan Vercammen   | Sensors              |
+| Name               | Team                 | Role                   |
+|--------------------|----------------------|------------------------|
+| Beau Forrez        | Gateway & Dashboard  |                        |
+| Elias Neels        | Gateway & Dashboard  |                        |
+| Kjell Naessens     | Gateway & Dashboard  | Team Leader            |
+| Wout Batselé       | Gateway & Dashboard  |                        |
+| Charlotte Bert     | Sensors              | Time manager           |
+| Niels Verhoeve     | Sensors              | Communication manager  |
+| Arne Van der Stede | Sensors              |                        |
+| Syme Vandenbosch   | Sensors              | Buget manager          |
+| Daan Vercammen     | Sensors              | Team Leader            |
