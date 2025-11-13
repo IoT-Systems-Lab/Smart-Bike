@@ -30,6 +30,7 @@ The code for the gateway is written in c++ using the Arduino framework. It is de
 
 ## Link to dashboard and database
 
+- Gateway WiFi repeater: https://github.com/martin-ger/esp32_nat_router/tree/master
 - InfluxDB Cloud: https://cloud2.influxdata.com/
 - Grafana Cloud: https://grafana.com/cloud
 - Grafana Dashboard: https://boombike.grafana.net/public-dashboards/a31db9c51b8144fbb526a16ae5137e5a?fbclid=IwY2xjawNm6t9leHRuA2FlbQIxMQABHihIpa4uVn0q4TQ20HxuqrC6knFB-QV5GCWbPZI-nRs55s2GTs8DI9WtZkRM_aem_m_eqAt-B783CyasroQSzHg
