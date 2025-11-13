@@ -23,6 +23,9 @@ BoomBikeBLE::~BoomBikeBLE() {
 
 void BoomBikeBLE::begin() {
     NimBLEDevice::init(deviceName.length() ? deviceName.c_str() : "");
+    NimBLEAddress addr = NimBLEDevice::getAddress();
+    Serial.print("Device Address: ");
+    Serial.println(addr.toString().c_str());
 }
 
 void BoomBikeBLE::addService(String serviceUUID) {
