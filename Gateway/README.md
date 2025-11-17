@@ -1,5 +1,7 @@
 # Gateway for Smart Bike Monitoring System
 
+<img src="PCB/schematic.png" width="1000">
+
 The purpose of the gateway is to receive data from a smart bike over BLE long range and write it to an InfluxDB database over a WiFi connection.
 The dashboard is visualized using Grafana. This accesses the InfluxDB database using its HTTP API.
 
