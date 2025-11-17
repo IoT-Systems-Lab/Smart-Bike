@@ -130,7 +130,7 @@ void sampleIfDue(unsigned long now) {
     float gas = bme.gas_resistance;
     const float gas_lower = 10000.0;
     const float gas_upper = 1000000.0;
-    iaq = 500.0 * (1.0 - ((log(gas) - log(gas_lower)) / (log(gas_upper) - log(gas_lower))));
+    iaq = 0.4 * 500.0 * (1.0 - ((log(gas) - log(gas_lower)) / (log(gas_upper) - log(gas_lower))));
     iaq = constrain(iaq, 0.0, 500.0);
   } else {
     Serial.println("FOUT bij BME680 meting");
