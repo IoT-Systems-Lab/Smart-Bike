@@ -24,7 +24,8 @@
 // Globale objecten
 // ----------------------
 Adafruit_BME680 bme;
-BoomBikeBLE bikeBLE("BoomBike-Gateway");
+// Gebruik de nieuwe constructor voor de BLE client
+BoomBikeBLE bikeBLE("ABCD", "1234");
 BoomBikeUltrasonic ultrasonic(TRIG_PIN, ECHO_PIN);
 BoomBikeInfluxPublisher influxPublisher(
   WIFI_SSID, WIFI_PASSWORD,
@@ -61,6 +62,25 @@ void publishIfDue(unsigned long now);
 void resetAccumulators();
 
 // ----------------------
+// Bluetooth Dataverwerking
+// ----------------------
+
+// Callback functie voor wanneer BLE data wordt ontvangen
+void onBleDataReceived(const std::string& address, const std::string& data) {
+  Serial.print("--- BLE Data Ontvangen ---\n");
+  Serial.print("Van apparaat: ");
+  Serial.println(address.c_str());
+  Serial.print("Waarde: ");
+  Serial.println(data.c_str());
+  Serial.print("--------------------------\n");
+
+  // Hier kan je de data later naar InfluxDB sturen
+  // influxPublisher.addData("ble_node_address", address.c_str());
+  // influxPublisher.addData("ble_node_data", data.c_str());
+  // influxPublisher.publishData();
+}
+
+// ----------------------
 // Setup
 // ----------------------
 void setup() {
@@ -69,17 +89,18 @@ void setup() {
   Serial.println("BoomBike Gateway + BME680 gestart");
 
   // WiFi + InfluxDB + BLE
-  bikeBLE.begin();
-  bikeBLE.setPhy(NimBLEScan::Phy::SCAN_CODED);
   influxPublisher.begin();
   // enable ultrasonic pass detection
   ultrasonic.enablePassDetection();
+  // Initialiseer de BLE client en registreer de callback
+  bikeBLE.begin();
+  bikeBLE.onDataReceived(onBleDataReceived);
 
   // I2C en BME680 initialiseren
   Wire.begin(SDA_PIN, SCL_PIN);
   if (!bme.begin(BME680_ADDRESS, &Wire)) {
     Serial.println("Geen BME680 sensor gevonden!");
-    while (1) delay(10);
+    //while (1) delay(10);
   }
   Serial.println("BME680 sensor gevonden");
 
@@ -241,7 +262,9 @@ void resetAccumulators() {
 void loop() {
   unsigned long now = millis();
   sampleIfDue(now);
+  bikeBLE.loop(); // Call the BLE loop to handle scan if needed
   publishIfDue(now);
+
 
   // short yield to avoid starving background tasks
   delay(1);

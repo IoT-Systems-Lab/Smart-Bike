@@ -1,217 +1,133 @@
 #include "BoomBikeBLE.h"
+#include <Arduino.h>
 
-BoomBikeBLE::BoomBikeBLE(String deviceName, NimBLEScan::Phy scanPhy) {
-    this->deviceName = deviceName;
-    this->scanPhy = scanPhy;
-    scanCallbacks = new ScanCallbacks();
-    services = std::map<String, NimBLEService*>();
-    pServer = nullptr;
-    pClient = nullptr;
-}
+BoomBikeBLE::BoomBikeBLE(const char* serviceUUID, const char* characteristicUUID)
+    : m_serviceUUID(serviceUUID), m_characteristicUUID(characteristicUUID) {}
 
 BoomBikeBLE::~BoomBikeBLE() {
-    if (pClient) {
-        NimBLEDevice::deleteClient(pClient);
-        pClient = nullptr;
+    if (m_pAdvertisedDevice != nullptr) {
+        delete m_pAdvertisedDevice;
+        m_pAdvertisedDevice = nullptr;
     }
-    if (pServer) {
-        NimBLEDevice::deinit(true); // Deinitialize NimBLE and clear all data
-        pServer = nullptr;
-    }
-    services.clear();
 }
 
 void BoomBikeBLE::begin() {
-    NimBLEDevice::init(deviceName.length() ? deviceName.c_str() : "");
-    NimBLEAddress addr = NimBLEDevice::getAddress();
-    Serial.print("Device Address: ");
-    Serial.println(addr.toString().c_str());
+    NimBLEDevice::init("BoomBikeGateway");
+    NimBLEScan* pScan = NimBLEDevice::getScan();
+    pScan->setScanCallbacks(this);
+    pScan->setInterval(45);
+    pScan->setWindow(15);
+    pScan->setActiveScan(true);
+    // Set the PHY to Coded for Long Range
+    pScan->setPhy(NimBLEScan::Phy::SCAN_CODED);
 }
 
-void BoomBikeBLE::addService(String serviceUUID) {
-    // Create server if it doesn't exist
-    if (pServer == nullptr) {
-        pServer = NimBLEDevice::createServer();
-    }
-    // Check if service already exists
-    NimBLEService* existingService = nullptr;
-    if (pServer) existingService = pServer->getServiceByUUID(serviceUUID.c_str());
-    if (existingService != nullptr) {
-        Serial.println("Service already exists: " + serviceUUID);
-        return;
-    }
-    // Create and store the service
-    NimBLEService* pService = nullptr;
-    if (pServer) pService = pServer->createService(serviceUUID.c_str());
-    if (!pService) {
-        Serial.println("Failed to create service: " + serviceUUID);
-        return;
-    }
-    services[serviceUUID] = pService;
-    Serial.println("Added service: " + serviceUUID);
-}
-
-void BoomBikeBLE::addCharacteristic(String serviceUUID, String CharUUID, String value, uint32_t properties, uint16_t max_len) {
-    // Ensure the service exists, if not, create it
-    if (services.find(serviceUUID) == services.end()) {
-        addService(serviceUUID);
-    }
-    NimBLEService* pService = services[serviceUUID];
-    if (pService == nullptr) {
-        Serial.println("Service pointer is null after addService for: " + serviceUUID);
-        return;
-    }
-    // Check if characteristic already exists
-    NimBLECharacteristic* existingChar = pService->getCharacteristic(CharUUID.c_str());
-    if (existingChar != nullptr) {
-        Serial.println("Characteristic already exists: " + CharUUID);
-        return;
-    }
-    // Create and add the characteristic
-    NimBLECharacteristic* pCharacteristic = nullptr;
-    if (pService) pCharacteristic = pService->createCharacteristic(CharUUID.c_str(), properties, max_len);
-    if (!pCharacteristic) {
-        Serial.println("Failed to create characteristic: " + CharUUID + " for service: " + serviceUUID);
-        return;
-    }
-    if (value.length() > 0) {
-        pCharacteristic->setValue(value.c_str());
-    }
-    Serial.println("Added characteristic: " + CharUUID + " to service: " + serviceUUID);
-}
-
-void BoomBikeBLE::setCharacteristicValue(String serviceUUID, String CharUUID, String value) {
-    // Ensure the service exists
-    if (services.find(serviceUUID) == services.end()) {
-        addService(serviceUUID);
-    }
-    NimBLEService* pService = services[serviceUUID];
-    if (pService == nullptr) {
-        Serial.println("Service pointer is null in setCharacteristicValue for: " + serviceUUID);
-        return;
-    }
-    // Ensure the characteristic exists
-    NimBLECharacteristic* pCharacteristic = pService->getCharacteristic(CharUUID.c_str());
-    if (pCharacteristic == nullptr) {
-        // Try creating the characteristic directly here with default properties
-        pCharacteristic = pService->createCharacteristic(CharUUID.c_str(), NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE, BLE_ATT_ATTR_MAX_LEN);
-        if (!pCharacteristic) {
-            Serial.println("Failed to create or locate characteristic: " + CharUUID);
-            return;
-        }
-    }
-    // Set the characteristic value
-    pCharacteristic->setValue(value.c_str());
-    Serial.println("Set characteristic value: " + CharUUID + " to: " + value);
-    // If this characteristic has the NOTIFY property, attempt to notify subscribed centrals of the new value
-    if (pCharacteristic->getProperties() & NIMBLE_PROPERTY::NOTIFY) {
-        pCharacteristic->notify();
-    }
-}
-
-void BoomBikeBLE::startAdvertising() {
-    // Get the advertising object depending on the protocol (legacy or extended)
-    #ifdef CONFIG_BT_NIMBLE_EXT_ADV // Use extended advertising
-    // Create an extended advertisement instance with coded PHY for longer range and 1M PHY as fallback for compatibility
-    NimBLEExtAdvertisement extAdv(BLE_HCI_LE_PHY_CODED, BLE_HCI_LE_PHY_1M);
-    extAdv.setConnectable(true);
-    // Start each service
-    for (const auto& service : services) {
-        service.second->start();
-    }
-    // Set the value of the advertising data for each service UUID
-    extAdv.setServiceData(NimBLEUUID("AAAA"), std::string("Service Data Example")); // Example service data
-    // Get pointer to the extended advertising instance
-    NimBLEExtAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
-    if (pAdvertising->setInstanceData(0, extAdv)) { // Use instance ID 0
-        // Start advertising with no timeout and unlimited events
-        if (pAdvertising->start(0, 0)) {
-            Serial.println("Started extended advertising");
+void BoomBikeBLE::loop() {
+    // If a device is found, connect to it from the main loop, not the callback
+    if (m_doConnect) {
+        m_doConnect = false;
+        if (connectAndRead(m_pAdvertisedDevice)) {
+            Serial.println("Successfully read data.");
         } else {
-            Serial.println("Failed to start advertising");
+            Serial.println("Failed to read data.");
         }
-    } else {
-        Serial.println("Failed to register advertising data");
+        // Free the memory allocated for the device copy
+        delete m_pAdvertisedDevice;
+        m_pAdvertisedDevice = nullptr;
+
+        // Restart the scan
+        NimBLEDevice::getScan()->start(SCAN_DURATION, false, false);
+        Serial.println("Scan restarted");
+        return; // Return to avoid starting another scan immediately
     }
+
+    uint32_t now = millis();
+    // Check if it's time to start a new scan
+    if (now - m_lastScanTime >= SCAN_INTERVAL) {
+        m_lastScanTime = now;
+        
+        NimBLEScan* pScan = NimBLEDevice::getScan();
+        // Start a non-blocking scan
+        if (pScan->isScanning() == false) {
+            pScan->start(SCAN_DURATION, false, false);
+            Serial.println("Scan started");
+        }
+    }
+}
+
+void BoomBikeBLE::onDataReceived(DataReceivedCallback callback) {
+    m_dataCallback = callback;
+}
+
+void BoomBikeBLE::setScanParameters(uint32_t intervalMs, uint32_t durationMs) {
+    // Update scan parameters
+    NimBLEScan* pScan = NimBLEDevice::getScan();
+    pScan->setInterval(intervalMs);
+    pScan->setWindow(durationMs);
+}
+
+void BoomBikeBLE::onResult(const NimBLEAdvertisedDevice* advertisedDevice) {
     
-    #else // Use legacy advertising
-    NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
-    // Add all service UUIDs to the advertising data
-    for (const auto& service : services) {
-        service.second->start();
-        pAdvertising->addServiceUUID(service.first.c_str());
+    // // Below is for debugging purposes
+    // Serial.printf("Scan Result: %s RSSI: %d\n", advertisedDevice->getAddress().toString().c_str(), advertisedDevice->getRSSI());
+    // // get service count
+    // uint8_t serviceCount = advertisedDevice->getServiceUUIDCount();
+    // Serial.printf("  Service UUID Count: %d\n", serviceCount);
+    // // loop over services and print them
+    // for (uint8_t i = 0; i < serviceCount; i++) {
+    //     NimBLEUUID svcUUID = advertisedDevice->getServiceUUID(i);
+    //     Serial.printf("    Service UUID[%d]: %s\n", i, svcUUID.toString().c_str());
+    // }
+
+    // Check if the device is advertising the service we're interested in
+    if (advertisedDevice->isAdvertisingService(m_serviceUUID)) {
+        Serial.printf("Found device: %s\n", advertisedDevice->getAddress().toString().c_str());
+        // Stop scanning to connect
+        NimBLEDevice::getScan()->stop();
+        
+        // Create a copy of the device object to use in the main loop
+        m_pAdvertisedDevice = new NimBLEAdvertisedDevice(*advertisedDevice);
+        // Set the flag to indicate that we want to connect
+        m_doConnect = true;
     }
-    // Set the device name if provided
-    if (deviceName.length() > 0) {
-        pAdvertising->setName(deviceName.c_str());
-    }
-    // Start advertising
-    pAdvertising->start();
-    Serial.println("BLE advertising started with device name: " + deviceName);
-    #endif
 }
 
-void BoomBikeBLE::verboseScanForDevices(int durationMillis) {
-    NimBLEScan* pScan = NimBLEDevice::getScan(); // Create new scan
-    pScan->setScanCallbacks(scanCallbacks); // Set callback to process each found device
-    pScan->setActiveScan(true); // Active scan to get more data
-    pScan->setPhy(scanPhy); // Set PHY for scanning
-    Serial.println("Starting BLE scan for " + String(durationMillis) + " milliseconds...");
-    pScan->start(durationMillis, false); // Start scan for specified duration
-}
-
-NimBLEAdvertisedDevice* BoomBikeBLE::findDeviceWithService(const NimBLEUUID& serviceUUID, int scanDuration) {
-    NimBLEAdvertisedDevice* result = nullptr;
-    NimBLEScan* pScan = NimBLEDevice::getScan(); // Create new scan
-    NimBLEScanResults results = pScan->getResults(scanDuration * 1000);
-    for (int i = 0; i < results.getCount(); i++) {
-        const NimBLEAdvertisedDevice *device = results.getDevice(i);
-        if (device->isAdvertisingService(serviceUUID)) {
-            result = new NimBLEAdvertisedDevice(*device); // Return a copy of the found device
-            break;
-        }
-    }
-    pScan->clearResults(); // Clear results to free memory
-    return result; // Return the found device or nullptr
-}
-
-bool BoomBikeBLE::connectToDevice(NimBLEAdvertisedDevice* device) {
-    if (device == nullptr) {
-        Serial.println("Cannot connect: device is null");
+bool BoomBikeBLE::connectAndRead(const NimBLEAdvertisedDevice* device) {
+    NimBLEClient* pClient = NimBLEDevice::createClient();
+    if (!pClient) {
+        Serial.println("Failed to create client");
         return false;
     }
-    // Create client if it doesn't exist
-    if (pClient == nullptr) {
-        pClient = NimBLEDevice::createClient();
+
+    // Use Coded PHY for connection
+    pClient->setConnectPhy(BLE_GAP_LE_PHY_CODED_MASK);
+    pClient->setConnectTimeout(4 * 1000); // 4 seconds
+
+    Serial.println("Connecting to device...");
+    if (!pClient->connect(device)) {
+        Serial.println("Failed to connect");
+        NimBLEDevice::deleteClient(pClient);
+        return false;
     }
-    // Connect to the device
-    if (!pClient->isConnected()) {
-        if (pClient->connect(device)) {
-            Serial.print("Connected to device: ");
-            Serial.println(device->getName().c_str());
-            return true;
-        } else {
-            Serial.println("Failed to connect to device");
-            return false;
+
+    Serial.printf("Connected to %s\n", device->getAddress().toString().c_str());
+
+    bool success = false;
+    NimBLERemoteService* pSvc = pClient->getService(m_serviceUUID);
+    if (pSvc) {
+        NimBLERemoteCharacteristic* pChr = pSvc->getCharacteristic(m_characteristicUUID);
+        if (pChr && pChr->canRead()) {
+            std::string value = pChr->readValue();
+            if (m_dataCallback) {
+                // Pass the data to the main application via the callback
+                m_dataCallback(device->getAddress().toString(), value);
+            }
+            success = true;
         }
-    } else {
-        Serial.println("Already connected to a device");
-        return true;
     }
-}
 
-void BoomBikeBLE::disconnect() {
-    if (pClient && pClient->isConnected()) {
-        pClient->disconnect();
-        Serial.println("Disconnected from device");
-    }
-}
-
-String ScanCallbacks::phyToString(uint8_t phy) {
-    switch (phy) {
-    case BLE_HCI_LE_PHY_1M:   return "1M";
-    case BLE_HCI_LE_PHY_2M:   return "2M";
-    case BLE_HCI_LE_PHY_CODED:return "CODED";
-    default:                  return "UNKNOWN";
-    }
+    pClient->disconnect();
+    NimBLEDevice::deleteClient(pClient);
+    Serial.println("Disconnected");
+    return success;
 }

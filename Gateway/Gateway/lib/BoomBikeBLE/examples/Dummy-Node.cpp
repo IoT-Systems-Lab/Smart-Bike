@@ -14,7 +14,7 @@ bool deviceConnected = false;
 #define LED_PIN 10 // Onboard LED pin
 
 static uint32_t advTime = 5000; // Advertising time in milliseconds
-static uint32_t sleepSeconds = 5; // Time to sleep between advertisements
+static uint32_t sleepSeconds = 1; // Time to sleep between advertisements
 
 class ServerCallbacks : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) override {
@@ -77,6 +77,7 @@ void setup() {
   extAdv.setName("DummyNode");
   extAdv.setServiceData(NimBLEUUID(SERVICE_UUID),
                         std::string("BoomBikeDummy Node to transmit data over Long Range :)"));
+  extAdv.addServiceUUID(SERVICE_UUID); // include service UUID in advertisement
 
   NimBLEExtAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
   pAdvertising->setCallbacks(&advertisingCallbacks);
