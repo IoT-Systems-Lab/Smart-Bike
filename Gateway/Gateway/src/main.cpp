@@ -19,13 +19,15 @@
 #define BME680_ADDRESS 0x76
 #define LED_PIN 10
 #define BUTTON_PIN 7
+#define SERVICE_UUID "ABCD"
+#define CHARACTERISTIC_UUID "1234"
 
 // ----------------------
 // Globale objecten
 // ----------------------
 Adafruit_BME680 bme;
 // Gebruik de nieuwe constructor voor de BLE client
-BoomBikeBLE bikeBLE("ABCD", "1234");
+BoomBikeBLE bikeBLE(SERVICE_UUID, CHARACTERISTIC_UUID);
 BoomBikeUltrasonic ultrasonic(TRIG_PIN, ECHO_PIN);
 BoomBikeInfluxPublisher influxPublisher(
   WIFI_SSID, WIFI_PASSWORD,
@@ -235,6 +237,8 @@ void publishIfDue(unsigned long now) {
   // Include pass info collected during the interval (single field)
   influxPublisher.addData("pass_count", (long)passIndex);
   if (passIndex > 0) {
+    Serial.print("==> PASS INDEX:");
+    Serial.println(passIndex);
     // Send all pass times as separate fields with the same key (library will handle overwriting if necessary).
     // According to request, add each time using the same key name.
     for (int i = 0; i < passIndex; i++) {

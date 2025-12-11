@@ -32,7 +32,7 @@ private:
     NimBLEAdvertisedDevice* m_pAdvertisedDevice = nullptr;
     
     // Constants for scanning
-    static const uint32_t SCAN_INTERVAL = 2000; // Time between the start of each scan (ms)
+    static const uint32_t SCAN_INTERVAL = 1000; // Time between the start of each scan (ms)
     static const uint32_t SCAN_DURATION = 600;  // Duration of each scan (ms)
     uint32_t m_lastScanTime = 0;
 };
