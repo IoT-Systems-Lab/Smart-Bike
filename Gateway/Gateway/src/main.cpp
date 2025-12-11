@@ -76,9 +76,44 @@ void onBleDataReceived(const std::string& address, const std::string& data) {
   Serial.println(data.c_str());
   Serial.print("--------------------------\n");
 
-  // Hier kan je de data later naar InfluxDB sturen
-  // influxPublisher.addData("ble_node_address", address.c_str());
-  // influxPublisher.addData("ble_node_data", data.c_str());
+  // data formaat:
+  // 'accX,accY,accZ,gyroX,gyroY,gyroZ,tempBike,latDirection,longDirection,latitude,longitude'
+  // alle waarden moeten gedeeld worden door 100, latitude en longitude zijn in 1e graads notatie (bijv. 51060148 voor 51.060148)
+  float accX = 0.0, accY = 0.0, accZ = 0.0;
+  float gyroX = 0.0, gyroY = 0.0, gyroZ = 0.0;
+  float tempBike = 0.0;
+  float latitude = 0.0, longitude = 0.0;
+  char latDirection = 'N', longDirection = 'E';
+
+  int parsed = sscanf(data.c_str(), "%f,%f,%f,%f,%f,%f,%f,%c,%c,%f,%f",
+                      &accX, &accY, &accZ,
+                      &gyroX, &gyroY, &gyroZ,
+                      &tempBike,
+                      &latDirection, &longDirection,
+                      &latitude, &longitude);
+  
+  // nu alles delen door 100
+  accX /= 100.0; accY /= 100.0; accZ /= 100.0;
+  gyroX /= 100.0; gyroY /= 100.0; gyroZ /= 100.0;
+  tempBike /= 100.0;
+  // latitude en longitude delen door 1e6
+  latitude /= 1000000.0; longitude /= 1000000.0;
+  // aanpassen op N/S en E/W
+  if (latDirection == 'S') latitude = -latitude;
+  if (longDirection == 'W') longitude = -longitude;
+
+  // nu de waarden toevoegen aan InfluxDB publisher
+  influxPublisher.addData("accX", accX);
+  influxPublisher.addData("accY", accY);
+  influxPublisher.addData("accZ", accZ);
+  influxPublisher.addData("gyroX", gyroX);
+  influxPublisher.addData("gyroY", gyroY);
+  influxPublisher.addData("gyroZ", gyroZ);
+  influxPublisher.addData("tempBike", tempBike);
+  influxPublisher.addData("latitude", latitude);
+  influxPublisher.addData("longitude", longitude);
+
+  // data wordt gepubliceerd in de main loop
   // influxPublisher.publishData();
 }
 
@@ -245,9 +280,6 @@ void publishIfDue(unsigned long now) {
       influxPublisher.addData("Finish time:", passTimes[i].c_str());
     }
   }
-  // optional GPS fields once per publish
-  influxPublisher.addData("latitude", 51.060148f);
-  influxPublisher.addData("longitude", 3.707525f);
   influxPublisher.publishData();
 
   resetAccumulators();
