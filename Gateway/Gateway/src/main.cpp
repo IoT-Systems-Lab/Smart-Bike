@@ -77,25 +77,27 @@ void onBleDataReceived(const std::string& address, const std::string& data) {
   Serial.print("--------------------------\n");
 
   // data formaat:
-  // 'accX,accY,accZ,gyroX,gyroY,gyroZ,tempBike,latDirection,longDirection,latitude,longitude'
+  // 'accX,accY,accZ,gyroX,gyroY,gyroZ,tempBike,latDirection,longDirection,latitude,longitude,speed'
   // alle waarden moeten gedeeld worden door 100, latitude en longitude zijn in 1e graads notatie (bijv. 51060148 voor 51.060148)
   float accX = 0.0, accY = 0.0, accZ = 0.0;
   float gyroX = 0.0, gyroY = 0.0, gyroZ = 0.0;
   float tempBike = 0.0;
   float latitude = 0.0, longitude = 0.0;
   char latDirection = 'N', longDirection = 'E';
+  float speed = 0.0;
 
-  int parsed = sscanf(data.c_str(), "%f,%f,%f,%f,%f,%f,%f,%c,%c,%f,%f",
+  int parsed = sscanf(data.c_str(), "%f,%f,%f,%f,%f,%f,%f,%c,%c,%f,%f,%f",
                       &accX, &accY, &accZ,
                       &gyroX, &gyroY, &gyroZ,
                       &tempBike,
                       &latDirection, &longDirection,
-                      &latitude, &longitude);
+                      &latitude, &longitude, &speed);
   
-  // nu alles delen door 100
-  accX /= 100.0; accY /= 100.0; accZ /= 100.0;
+  // nu accelero delen door 100000 (omdat in milli-g wordt gestuurd), gyro door 100
+  accX /= 100000.0; accY /= 100000.0; accZ /= 100000.0;
   gyroX /= 100.0; gyroY /= 100.0; gyroZ /= 100.0;
   tempBike /= 100.0;
+  speed /= 100.0;
   // latitude en longitude delen door 1e6
   latitude /= 1000000.0; longitude /= 1000000.0;
   // aanpassen op N/S en E/W
@@ -112,6 +114,7 @@ void onBleDataReceived(const std::string& address, const std::string& data) {
   influxPublisher.addData("tempBike", tempBike);
   influxPublisher.addData("latitude", latitude);
   influxPublisher.addData("longitude", longitude);
+  influxPublisher.addData("speed", speed);
 
   // data wordt gepubliceerd in de main loop
   // influxPublisher.publishData();
