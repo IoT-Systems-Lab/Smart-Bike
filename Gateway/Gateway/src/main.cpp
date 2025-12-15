@@ -19,8 +19,8 @@
 #define BME680_ADDRESS 0x76
 #define LED_PIN 10
 #define BUTTON_PIN 7
-#define SERVICE_UUID "ABCD"
-#define CHARACTERISTIC_UUID "1234"
+#define SERVICE_UUID "92faf2e0-05f9-491b-afeb-8c913697b403"
+#define CHARACTERISTIC_UUID "7ae4c208-bd43-41bd-86fc-e505ec17929d"
 
 // ----------------------
 // Globale objecten
